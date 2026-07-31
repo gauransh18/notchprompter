@@ -35,10 +35,16 @@ struct SettingsWindowView: View {
 
     var body: some View {
         NavigationSplitView {
-            List(SettingsTab.allCases, selection: $tab) { item in
-                Label(item.title, systemImage: item.symbol)
-                    .padding(.vertical, 1)
+            // Rows are tagged with the tab itself. `List(data, selection:)` would tag
+            // them with `SettingsTab.ID` — a String — and the binding would never match.
+            List(selection: $tab) {
+                ForEach(SettingsTab.allCases) { item in
+                    Label(item.title, systemImage: item.symbol)
+                        .padding(.vertical, 1)
+                        .tag(item)
+                }
             }
+            .listStyle(.sidebar)
             .navigationSplitViewColumnWidth(min: 158, ideal: 172, max: 220)
             .safeAreaInset(edge: .bottom) {
                 Text("NotchPrompter \(Self.appVersion)")

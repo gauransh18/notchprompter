@@ -1,4 +1,5 @@
 import AppKit
+import Speech
 import SwiftUI
 import Observation
 
@@ -189,7 +190,7 @@ final class AppSettings {
         launchAtLogin = LaunchAtLogin.isEnabled
 
         voiceEnabled = store.bool(K.voiceEnabled, false)
-        voiceLocale = store.string(K.voiceLocale, Locale.current.identifier)
+        voiceLocale = AppSettings.resolveVoiceLocale(store.string(forKey: K.voiceLocale))
         voiceOnDeviceOnly = store.bool(K.voiceOnDeviceOnly, true)
         voiceLookahead = store.int(K.voiceLookahead, 40)
         voiceAnchor = store.double(K.voiceAnchor, 0.35)
@@ -239,6 +240,28 @@ final class AppSettings {
         fadeEdges = true
         dimUnreadLines = false
         mirrorText = false
+    }
+
+    /// Speech recognition advertises locales as `en-US`, while `Locale.current` reports
+    /// `en_IN`. Without this the language picker has no matching tag and renders blank.
+    static func resolveVoiceLocale(_ stored: String?) -> String {
+        let supported = SFSpeechRecognizer.supportedLocales()
+        guard !supported.isEmpty else { return stored ?? "en-US" }
+
+        func match(_ candidate: String) -> String? {
+            let normalized = candidate.replacingOccurrences(of: "_", with: "-")
+            if let exact = supported.first(where: { $0.identifier == normalized }) {
+                return exact.identifier
+            }
+            // Fall back to any locale in the same language, e.g. en_IN -> en-IN or en-GB.
+            let language = Locale(identifier: normalized).language.languageCode?.identifier
+            return supported.first { $0.language.languageCode?.identifier == language }?.identifier
+        }
+
+        if let stored, let resolved = match(stored) { return resolved }
+        if let resolved = match(Locale.current.identifier) { return resolved }
+        if let english = supported.first(where: { $0.identifier == "en-US" }) { return english.identifier }
+        return supported.sorted { $0.identifier < $1.identifier }[0].identifier
     }
 
     static let sampleScript = """
