@@ -1,5 +1,9 @@
 # NotchPrompter
 
+[![NotchPrompter on apps.gauranshsharma.com](https://img.shields.io/badge/read%20more-apps.gauranshsharma.com-ffd43b?style=for-the-badge&labelColor=17130f)](https://apps.gauranshsharma.com/notchprompter/)
+[![Platform: macOS 14 or later](https://img.shields.io/badge/platform-macOS%2014%2B-f4f4f7?style=for-the-badge&labelColor=17130f)](https://apps.gauranshsharma.com/notchprompter/)
+[![Built with Swift + SwiftUI](https://img.shields.io/badge/built%20with-Swift%20%2B%20SwiftUI-f4f4f7?style=for-the-badge&labelColor=17130f)](https://apps.gauranshsharma.com/notchprompter/)
+
 A teleprompter that lives in your Mac's notch. Your script floats above the menu bar, right under the camera, so you read and look into the lens at the same time.
 
 Menu-bar app, no Dock icon, native SwiftUI + AppKit. Built for macOS 14 and later.
