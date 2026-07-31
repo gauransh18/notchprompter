@@ -1,0 +1,8 @@
+.DS_Store
+build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+*.xcworkspace/xcuserdata/
+NotchPrompter.xcodeproj/project.xcworkspace/
+NotchPrompter.xcodeproj/xcuserdata/
