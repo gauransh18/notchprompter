@@ -21,6 +21,10 @@ final class ScrollEngine {
     var countdownRemaining: Int = 0
     private var countdownDeadline: Date?
 
+    /// Fires when the position jumps for a reason other than playback (restart, scrub,
+    /// nudge, wrap-around), so voice tracking can re-anchor to the new spot.
+    @ObservationIgnored var onJump: (() -> Void)?
+
     var maxOffset: Double { max(0, contentHeight - viewportHeight) }
     var progress: Double { maxOffset > 0 ? min(1, offset / maxOffset) : 0 }
     var isCountingDown: Bool { countdownDeadline != nil }
@@ -55,16 +59,34 @@ final class ScrollEngine {
         voiceTarget = nil
         spokenLine = nil
         cancelCountdown()
+        onJump?()
     }
 
     func nudge(lines: Int, lineHeight: Double) {
         voiceTarget = nil
         offset = (offset + Double(lines) * lineHeight).clamped(to: 0...maxOffset)
+        onJump?()
     }
 
     func scrub(to newOffset: Double) {
         voiceTarget = nil
         offset = newOffset.clamped(to: 0...maxOffset)
+        onJump?()
+    }
+
+    func scrub(by delta: Double) {
+        scrub(to: offset + delta)
+    }
+
+    /// The display line sitting at `anchor` (0 = panel top, 1 = panel bottom).
+    func line(atAnchor anchor: Double) -> Int? {
+        let y = offset + viewportHeight * anchor
+        let sorted = lineFrames.sorted { $0.key < $1.key }
+        if let hit = sorted.first(where: { $0.value.minY <= y && y < $0.value.maxY }) {
+            return hit.key
+        }
+        // In the gap between two lines, take the next one down.
+        return sorted.first(where: { $0.value.minY >= y })?.key ?? sorted.last?.key
     }
 
     private func cancelCountdown() {
@@ -105,6 +127,9 @@ final class ScrollEngine {
             return
         }
 
+        // The script can shrink under us while it is being edited.
+        if contentHeight > 0, offset > maxOffset { offset = maxOffset }
+
         guard isPlaying else { return }
 
         offset += speed * dt
@@ -112,6 +137,7 @@ final class ScrollEngine {
         if offset >= maxOffset {
             if loop {
                 offset = 0
+                onJump?()
             } else {
                 offset = maxOffset
                 isPlaying = false

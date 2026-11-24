@@ -10,6 +10,9 @@ struct ScriptModel {
         let isDirection: Bool
         /// Range into `tokens`. Empty for blank lines and stage directions.
         let tokenRange: Range<Int>
+        /// `text` with inline emphasis applied (`**bold**`, `*italic*`, `~~struck~~`),
+        /// or nil for plain lines, which render faster as a plain `Text`.
+        let styledText: AttributedString?
     }
 
     let lines: [Line]
@@ -27,7 +30,13 @@ struct ScriptModel {
                 tokens.append(contentsOf: Self.tokenize(trimmed))
             }
             lines.append(
-                Line(id: index, text: raw, isDirection: isDirection, tokenRange: start..<tokens.count)
+                Line(
+                    id: index,
+                    text: raw,
+                    isDirection: isDirection,
+                    tokenRange: start..<tokens.count,
+                    styledText: Self.styled(raw)
+                )
             )
         }
 
@@ -36,6 +45,11 @@ struct ScriptModel {
     }
 
     var isEmpty: Bool { tokens.isEmpty }
+
+    /// Nothing but whitespace, so the panel shows its placeholder.
+    var isBlank: Bool {
+        lines.allSatisfy { $0.text.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
 
     /// The display line that owns a given token, or nil past the end.
     func lineIndex(forToken token: Int) -> Int? {
@@ -50,7 +64,23 @@ struct ScriptModel {
         return Double(token - line.tokenRange.lowerBound) / Double(count)
     }
 
+    /// First spoken token on `line` or the nearest spoken line after it.
+    func firstToken(atOrAfterLine line: Int) -> Int {
+        lines.first(where: { $0.id >= line && !$0.tokenRange.isEmpty })?.tokenRange.lowerBound ?? tokens.count
+    }
+
     // MARK: Parsing
+
+    /// Light inline Markdown so presenters can mark the words to stress. Only lines
+    /// that contain an emphasis marker are parsed, so `[Pause](beat)` style stage
+    /// directions never turn into links.
+    private static func styled(_ raw: String) -> AttributedString? {
+        guard raw.contains(where: { $0 == "*" || $0 == "_" || $0 == "~" }) else { return nil }
+        return try? AttributedString(
+            markdown: raw,
+            options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace)
+        )
+    }
 
     /// A line made up only of `[...]` or `(...)` fragments is a stage direction.
     private static func directionOnly(_ text: String) -> Bool {

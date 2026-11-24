@@ -27,6 +27,11 @@ struct ScriptMatcher {
         cursor = 0
     }
 
+    /// Move the expected position, e.g. after the user scrubs or jumps back to the top.
+    mutating func seek(to token: Int) {
+        cursor = min(max(0, token), tokens.count)
+    }
+
     /// Feed the tail of the live transcript. Returns the matched script token index, if any.
     mutating func consume(spoken: [String]) -> Int? {
         guard !tokens.isEmpty else { return nil }
@@ -42,8 +47,10 @@ struct ScriptMatcher {
 
         for candidate in lower..<upper {
             let score = score(candidate: candidate, tail: tail)
-            // Prefer forward progress when two positions score the same.
-            if score > bestScore {
+            // On a tie, keep the position nearest to where we expected the speaker to be,
+            // so a repeated phrase does not yank the script backwards or far ahead.
+            let isCloser = bestIndex.map { abs(candidate - cursor) < abs($0 - cursor) } ?? true
+            if score > bestScore || (score == bestScore && score > 0 && isCloser) {
                 bestScore = score
                 bestIndex = candidate
             }

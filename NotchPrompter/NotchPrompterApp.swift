@@ -35,10 +35,11 @@ struct MenuBarContent: View {
     @Bindable var settings: AppSettings
 
     var body: some View {
+        // No `.keyboardShortcut` here: the real bindings are user-defined global
+        // hotkeys, and a hardcoded hint would go stale the moment one is rebound.
         Button(controller.isVisible ? "Hide Prompter" : "Show Prompter") {
             controller.toggleVisible()
         }
-        .keyboardShortcut("n", modifiers: [.command, .option])
 
         Button(controller.engine.isPlaying ? "Pause Scrolling" : "Start Scrolling") {
             controller.togglePlay()

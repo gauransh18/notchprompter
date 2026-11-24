@@ -6,7 +6,7 @@ struct BehaviorPane: View {
     var body: some View {
         Form {
             Section("Scrolling") {
-                SliderRow(title: "Scroll speed", value: $settings.scrollSpeed, range: 2...160) {
+                SliderRow(title: "Scroll speed", value: $settings.scrollSpeed, range: AppSettings.speedRange) {
                     "\(Int($0)) px/s"
                 }
 

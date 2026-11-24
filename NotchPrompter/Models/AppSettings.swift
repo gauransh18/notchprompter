@@ -215,12 +215,18 @@ final class AppSettings {
         Double(wordCount) / 150.0 * 60.0
     }
 
+    /// Scroll speed bounds in px/s, shared by the slider, the menu and the hotkeys.
+    static let speedRange: ClosedRange<Double> = 2...200
+
     /// Nil only when the Mac has no active display, e.g. clamshell with nothing attached.
+    /// "Automatic" means the built-in display with the notch when there is one: the
+    /// camera is the whole point. `NSScreen.main` is just whichever has keyboard focus.
     var targetScreen: NSScreen? {
-        if let match = NSScreen.screens.first(where: { $0.persistentIdentifier == screenID }) {
+        if !screenID.isEmpty,
+           let match = NSScreen.screens.first(where: { $0.persistentIdentifier == screenID }) {
             return match
         }
-        return NSScreen.main ?? NSScreen.screens.first
+        return NSScreen.screens.first(where: NotchGeometry.hasNotch) ?? NSScreen.main ?? NSScreen.screens.first
     }
 
     func resetAppearance() {

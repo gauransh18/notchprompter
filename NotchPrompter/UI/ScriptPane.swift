@@ -28,8 +28,8 @@ struct ScriptPane: View {
                     Button("Import from File…", action: importScript)
                     Button("Export to File…", action: exportScript)
                     Divider()
-                    Button("Load Sample Script") { settings.script = AppSettings.sampleScript }
-                    Button("Clear Script", role: .destructive) { settings.script = "" }
+                    Button("Load Sample Script") { replaceScript(with: AppSettings.sampleScript) }
+                    Button("Clear Script", role: .destructive) { replaceScript(with: "") }
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
@@ -46,7 +46,7 @@ struct ScriptPane: View {
 
             Spacer()
 
-            Text("Bracketed lines like [Pause] are shown but skipped by voice follow.")
+            Text("**bold** and *italic* add emphasis. [Pause] lines are skipped by voice follow.")
                 .foregroundStyle(.tertiary)
         }
         .font(.caption)
@@ -72,24 +72,32 @@ struct ScriptPane: View {
         return String(format: "%d:%02d", total / 60, total % 60)
     }
 
+    private func replaceScript(with text: String) {
+        settings.script = text
+        controller.scriptReplaced()
+    }
+
     private func insert(_ text: String) {
         settings.script += text
     }
 
     private func importScript() {
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.plainText, .text, .rtf]
+        panel.allowedContentTypes = [.plainText, .text, .rtf, .rtfd]
+            + ["docx", "doc", "odt", "md", "markdown"].compactMap { UTType(filenameExtension: $0) }
         panel.allowsMultipleSelection = false
         panel.canChooseDirectories = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
-        if url.pathExtension.lowercased() == "rtf",
+        // Word, OpenDocument and rich text all come through NSAttributedString as plain text.
+        let rich: Set<String> = ["rtf", "rtfd", "docx", "doc", "odt"]
+        if rich.contains(url.pathExtension.lowercased()),
            let attributed = try? NSAttributedString(url: url, options: [:], documentAttributes: nil) {
-            settings.script = attributed.string
+            replaceScript(with: attributed.string)
             return
         }
         if let text = try? String(contentsOf: url, encoding: .utf8) {
-            settings.script = text
+            replaceScript(with: text)
         }
     }
 

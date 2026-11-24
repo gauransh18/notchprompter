@@ -15,7 +15,8 @@ Menu-bar app, no Dock icon, native SwiftUI + AppKit. Built for macOS 14 and late
 - Left, center, right or free-dragged placement, on any connected display
 - Adjustable width, height and top offset; fades at the top and bottom edges
 - Mirror mode for teleprompter glass
-- Drag the text to scrub, or turn on click-through so the panel ignores the mouse entirely
+- Drag the text or two-finger scroll over it to scrub, or turn on click-through so the panel ignores the mouse entirely
+- Fades in and out; follows the notched display when screens are plugged in or rearranged
 
 **Hidden from recordings**
 - One toggle keeps the panel out of screen recordings and screen shares (`NSWindow.sharingType = .none`), so it is visible to you and invisible to your audience
@@ -23,15 +24,20 @@ Menu-bar app, no Dock icon, native SwiftUI + AppKit. Built for macOS 14 and late
 **Scrolling**
 - Steady auto-scroll at a speed you set, with countdown, loop and auto-start
 - Progress bar along the bottom edge, per-frame smooth via `CADisplayLink`
+- The text column scrolls as a Core Animation layer, so CPU stays flat however long the script is
+- Speed changes from a hotkey flash a small speed readout in the panel, since you are in another app
 
 **Voice follow**
 - On-device speech recognition tracks where you are in the script and scrolls to match
 - Survives pauses, ad-libs and skipped paragraphs: a fuzzy matcher scores the last few spoken words against every position within a look-ahead window
 - Lines in brackets — `[Pause]`, `(beat)` — render as dimmed stage directions and are skipped by the matcher
 - Recognition sessions rotate automatically so the ~1 minute task limit never interrupts a take
+- Back to Start, scrubbing and nudging re-anchor the matcher to what is on screen
+- Editing the script while voice follow runs keeps your place and never restarts the microphone
 
 **Everything else**
-- Script editor with word count, read time, scroll time, plain-text and RTF import, export
+- Script editor with word count, read time, scroll time, export, and import from plain text, Markdown, RTF, Word (.docx/.doc) and OpenDocument
+- Inline emphasis: `**bold**`, `*italic*`, `~~struck~~` render styled in the prompter
 - Font style (Default / Serif / Round / Mono / Dyslexic-friendly), size, line spacing, alignment
 - Text, background and spoken-line colors; background opacity; corner radius
 - Global shortcuts for play/pause, show/hide, restart, speed, nudge and voice — they work while you are recording in another app

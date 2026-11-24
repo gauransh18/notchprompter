@@ -53,6 +53,17 @@ final class VoiceTracker {
     private var sessionStartedAt = Date.distantPast
     private var consecutiveFailures = 0
 
+    /// Bumped whenever a recognition task is torn down. A cancelled task still calls
+    /// its result handler, so every callback carries the generation it was born in
+    /// and anything stale is dropped instead of being charged to the next session.
+    private var generation = 0
+    private var pendingRestart: DispatchWorkItem?
+
+    /// Words of the current transcript to ignore after a seek, so what was said before
+    /// the jump cannot drag the cursor back to where it was.
+    private var ignoredWordCount = 0
+    private var lastWordCount = 0
+
     // MARK: Control
 
     func start(model: ScriptModel, localeIdentifier: String, onDeviceOnly: Bool, lookahead: Int) {
@@ -90,6 +101,24 @@ final class VoiceTracker {
         stopAudio()
         matcher = nil
         status = .idle
+    }
+
+    var isActive: Bool { isRunning }
+
+    /// Swap in a new script without touching the microphone or the recognition task.
+    func update(model: ScriptModel, lookahead: Int) {
+        guard isRunning else { return }
+        let cursor = matcher?.cursor ?? 0
+        var next = ScriptMatcher(tokens: model.tokens, lookahead: lookahead)
+        next.seek(to: cursor)
+        matcher = next
+    }
+
+    /// Tell the matcher where the speaker is now, after a scrub, nudge or restart.
+    func seek(toToken token: Int) {
+        guard isRunning, matcher != nil else { return }
+        matcher?.seek(to: token)
+        ignoredWordCount = lastWordCount
     }
 
     // MARK: Permissions
@@ -178,11 +207,14 @@ final class VoiceTracker {
         requestBox.set(request)
 
         sessionStartedAt = Date()
+        ignoredWordCount = 0
+        lastWordCount = 0
+        let born = generation
         task = recognizer.recognitionTask(with: request) { [weak self] result, error in
             let transcript = result?.bestTranscription.formattedString
             let finished = (result?.isFinal ?? false) || error != nil
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, born == self.generation else { return }
                 if let transcript { self.handle(transcript: transcript) }
                 if finished { self.rotate(afterError: error != nil) }
             }
@@ -193,6 +225,9 @@ final class VoiceTracker {
     }
 
     private func endRecognition() {
+        generation += 1
+        pendingRestart?.cancel()
+        pendingRestart = nil
         task?.cancel()
         task = nil
         requestBox.finish()
@@ -226,10 +261,13 @@ final class VoiceTracker {
         endRecognition()
 
         // Small gap so the previous task fully unwinds before the next one starts.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { [weak self] in
+        let restart = DispatchWorkItem { [weak self] in
             guard let self, self.isRunning else { return }
+            self.pendingRestart = nil
             self.startRecognition()
         }
+        pendingRestart = restart
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: restart)
     }
 
     private func fail(_ reason: String) {
@@ -243,7 +281,11 @@ final class VoiceTracker {
 
     private func handle(transcript: String) {
         guard isRunning, var matcher else { return }
-        let spoken = ScriptModel.tokenize(transcript)
+        let words = ScriptModel.tokenize(transcript)
+        lastWordCount = words.count
+        // Partial results can revise themselves shorter; never ignore more than we have.
+        ignoredWordCount = min(ignoredWordCount, words.count)
+        let spoken = Array(words.dropFirst(ignoredWordCount))
         guard !spoken.isEmpty else { return }
         if let matched = matcher.consume(spoken: spoken) {
             onMatch?(matched)
